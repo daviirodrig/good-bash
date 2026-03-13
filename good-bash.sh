@@ -411,39 +411,70 @@ install_btop() {
         warn "Could not fetch btop version"
     fi
 }
-
 # ──────────────────── Install: Nerd Font ──────────────────────
 install_nerd_font() {
     step "Nerd Font (JetBrains Mono)"
 
-    if ls "$FONT_DIR"/JetBrains*Nerd* &>/dev/null 2>&1; then
+    local target_dir="$FONT_DIR"
+    [[ "$OS" == "darwin" ]] && target_dir="$HOME/Library/Fonts"
+    mkdir -p "$target_dir"
+
+    # Check if already installed (idempotent)
+    if compgen -G "$target_dir/JetBrains*Nerd*" >/dev/null 2>&1; then
         success "Nerd Font already installed"
         return
     fi
 
-    # macOS: different font path
-    if [[ "$OS" == "darwin" ]]; then
-        FONT_DIR="$HOME/Library/Fonts"
-        mkdir -p "$FONT_DIR"
-    fi
+    info "Downloading JetBrainsMono Nerd Font (~70MB, please wait)..."
 
-    info "Downloading JetBrainsMono Nerd Font..."
     local url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
 
-    if curl -fsSL "$url" -o "$TMP_DIR/font.tar.xz"; then
-        mkdir -p "$TMP_DIR/fonts"
-        tar -xf "$TMP_DIR/font.tar.xz" -C "$TMP_DIR/fonts" 2>/dev/null
-        # Only copy actual font files
-        find "$TMP_DIR/fonts" -name "*.ttf" -exec cp {} "$FONT_DIR/" \;
-
-        # Refresh font cache on Linux
-        if command -v fc-cache &>/dev/null; then
-            fc-cache -f "$FONT_DIR" 2>/dev/null
+    # Show download progress (this is the fix for "stuck" feeling)
+    if ! curl -fSL --progress-bar "$url" -o "$TMP_DIR/font.tar.xz"; then
+        warn "Download failed. Trying .zip fallback..."
+        url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+        if ! curl -fSL --progress-bar "$url" -o "$TMP_DIR/font.zip"; then
+            warn "Could not download Nerd Font — install manually for icons"
+            return
         fi
-        success "Nerd Font installed to $FONT_DIR"
+        # Extract zip
+        mkdir -p "$TMP_DIR/fonts"
+        unzip -qo "$TMP_DIR/font.zip" -d "$TMP_DIR/fonts" 2>/dev/null
     else
-        warn "Could not download Nerd Font (install manually for icons)"
+        # Extract tar.xz — needs xz
+        mkdir -p "$TMP_DIR/fonts"
+        if command -v xz &>/dev/null || command -v xzcat &>/dev/null; then
+            tar -xf "$TMP_DIR/font.tar.xz" -C "$TMP_DIR/fonts" 2>/dev/null
+        else
+            warn "xz not found, cannot extract .tar.xz — trying .zip fallback..."
+            url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+            if curl -fSL --progress-bar "$url" -o "$TMP_DIR/font.zip"; then
+                unzip -qo "$TMP_DIR/font.zip" -d "$TMP_DIR/fonts" 2>/dev/null
+            else
+                warn "Could not download/extract Nerd Font"
+                return
+            fi
+        fi
     fi
+
+    # Copy only .ttf files
+    local count=0
+    while IFS= read -r -d '' f; do
+        cp "$f" "$target_dir/"
+        ((count++))
+    done < <(find "$TMP_DIR/fonts" -name "*.ttf" -print0 2>/dev/null)
+
+    if [[ "$count" -eq 0 ]]; then
+        warn "No .ttf files found in download"
+        return
+    fi
+
+    # Refresh font cache on Linux
+    if command -v fc-cache &>/dev/null; then
+        fc-cache -f "$target_dir" 2>/dev/null
+    fi
+
+    success "Nerd Font installed ($count files → $target_dir)"
 }
 
 # ──────────────────── Install: All modern tools ───────────────

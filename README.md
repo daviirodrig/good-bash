@@ -1,15 +1,15 @@
 A good bash experience in just one shell file
 
-Dependencies: `curl`, `git`, `make`,`gawk`
+Dependencies: `curl`, `git`, `make`,`gawk`, `xz`
 
 Ubuntu:
 ```sh
-apt update && apt install curl git make gawk -yy
+apt update && apt install curl git make gawk xz-utils -yy
 ```
 
 Arch:
 ```sh
-sudo pacman -Sy --needed -y curl git make gawk
+sudo pacman -Sy --needed -y curl git make gawk xz
 ```
 
 ## Installation

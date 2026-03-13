@@ -11,3 +11,9 @@ Arch:
 ```sh
 sudo pacman -Sy --needed -y curl git make gawk
 ```
+
+## Installation
+
+```sh
+curl -sL https://raw.githubusercontent.com/daviirodrig/good-bash/refs/heads/main/good-bash.sh | bash
+```
